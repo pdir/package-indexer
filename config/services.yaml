@@ -1,0 +1,75 @@
+services:
+    _defaults:
+        autoconfigure: true
+        public: false
+
+    AlgoliaSearch\Client:
+        arguments:
+            - '%env(ALGOLIA_APP_ID)%'
+            - '%env(ALGOLIA_API_KEY)%'
+
+    App\MetaDataRepository:
+        arguments:
+            - '%kernel.project_dir%/metadata'
+
+    App\Cache\MetaAwarePackageHashGenerator: ~
+
+    App\Cache\PackageHashGenerator: ~
+
+    App\Package\Factory:
+        arguments:
+            - '@App\MetaDataRepository'
+            - '@App\Packagist'
+
+    indexer.basic:
+        class: App\Indexer
+        arguments:
+            - '@logger'
+            - '@App\Packagist'
+            - '@App\Package\Factory'
+            - '@AlgoliaSearch\Client'
+            - '@cache.app'
+            - '@App\Cache\PackageHashGenerator'
+            - '@App\MetaDataRepository'
+
+    indexer.extended_meta:
+        class: App\Indexer
+        arguments:
+            - '@logger'
+            - '@App\Packagist'
+            - '@App\Package\Factory'
+            - '@AlgoliaSearch\Client'
+            - '@cache.app'
+            - '@App\Cache\MetaAwarePackageHashGenerator'
+            - '@App\MetaDataRepository'
+
+    App\Command\IndexCommand:
+        arguments:
+            - '@indexer.basic'
+            - '@App\MetaDataRepository'
+
+    App\Command\IndexMetaCommand:
+        arguments:
+            - '@indexer.extended_meta'
+            - '@App\MetaDataRepository'
+
+    App\Packagist:
+        arguments:
+            - '@logger'
+            - '@eight_points_guzzle.client.packagist'
+
+    # Guzzle cache services
+    guzzle.psr6_cache_storage:
+        class: Kevinrob\GuzzleCache\Storage\Psr6CacheStorage
+        arguments: ['@cache.app']
+        public: false
+
+    guzzle.private_cache_strategy:
+        class: Kevinrob\GuzzleCache\Strategy\PrivateCacheStrategy
+        arguments: ['@guzzle.psr6_cache_storage']
+        public: false
+
+    guzzle.public_cache_strategy:
+        class: Kevinrob\GuzzleCache\Strategy\PublicCacheStrategy
+        arguments: ['@guzzle.psr6_cache_storage']
+        public: false
